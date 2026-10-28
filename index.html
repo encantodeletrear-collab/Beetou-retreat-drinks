@@ -260,10 +260,10 @@ DRINKS.forEach((d,i)=>{d.cat=CAT_OF[d.id];d._i=i});
 DRINKS.sort((x,y)=>CATS.indexOf(x.cat)-CATS.indexOf(y.cat)||x._i-y._i);
 DRINKS.forEach((d,i)=>d.no=String(i+1).padStart(2,'0'));
 const SUGARS=['不加蜂蜜','加蜂蜜'];
-const ICES=['正常冰','少冰','微冰','去冰','溫','熱'];
+const ICES=['微冰','去冰','常溫','熱'];
 const byId=Object.fromEntries(DRINKS.map(d=>[d.id,d]));
 const INK='#2A2622', SHADOW='#DCCFB8';
-const iceOpts=d=>d.hot?ICES:ICES.slice(0,4);
+const iceOpts=d=>d.hot?ICES:ICES.slice(0,2);
 
 /* ---------- hand drawing ---------- */
 function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
@@ -351,8 +351,8 @@ function fujiBg(B){
 }
 function drawDrink(d,o={}){
   const R=rng(hash(d.id));
-  const ice=o.ice||(d.hot===false?'少冰':'少冰');
-  const hot=ice==='溫'||ice==='熱';
+  const ice=o.ice||'微冰';
+  const hot=ice==='熱';
   const s=[];const B=176;
   s.push(P(hand([[58,B+4],[142,B+4],[136,B+9],[64,B+9]],R,1,true),SHADOW));
   s.push(L(hand([[42,B+5],[160,B+5]],R,.6),1,.7));
@@ -432,7 +432,7 @@ $('grid').addEventListener('click',e=>{const p=e.target.closest('.poster');if(p)
 let cur=null;
 function openDetail(id){
   const d=byId[id];
-  cur={drinkId:id,sugar:'不加蜂蜜',ice:'少冰',qty:1,note:''};if(d.teas)cur.tea=d.teas[0];
+  cur={drinkId:id,sugar:'不加蜂蜜',ice:'微冰',qty:1,note:''};if(d.teas)cur.tea=d.teas[0];
   renderDetail();$('detail').hidden=false;document.body.style.overflow='hidden';
   setTimeout(()=>$('detail').querySelector('.close')?.focus(),30);
 }
@@ -476,7 +476,7 @@ function openBag(){renderBag();$('bagVeil').hidden=false;document.body.style.ove
 function closeBag(){$('bagVeil').hidden=true;document.body.style.overflow=''}
 function renderBag(){
   const total=cart.reduce((a,it)=>a+linePrice(it),0);const cups=cart.reduce((a,it)=>a+it.qty,0);
-  const prevName=$('cName')?.value||'';const prevTime=$('cTime')?.value||'15';
+  const prevName=$('cName')?.value||'';const days=pickupDays();const prevDay=days.some(d=>d.v===$('cDay')?.value)?$('cDay').value:days[0].v;const prevTime=$('cTime')?.value||'';
   $('bagVeil').innerHTML=`
   <aside class="bag" role="dialog" aria-modal="true" aria-label="購物袋">
     <div class="head"><h2>購物袋</h2><button type="button" class="close" id="closeBag">close ×</button></div>
@@ -487,23 +487,24 @@ function renderBag(){
       </div>`}).join(''):`<div class="empty">${drawDrink({id:'empty',liquid:'#EDE6D8'},{ice:'去冰'})}<p>袋子裡還沒有飲料</p></div>`}
     </div>
     ${cart.length?`<div class="foot">
+      <label class="f">取餐姓名<input type="text" id="cName" maxlength="12" placeholder="例如：Shannon" value="${prevName}"></label>
       <div class="row2">
-        <label class="f">取餐姓名<input type="text" id="cName" maxlength="12" placeholder="例如：Shannon" value="${prevName}"></label>
-        <label class="f">取餐時間<select id="cTime" style="font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--sheet);padding:10px;color:var(--ink)">
-          ${[['5','盡快（約5分）'],['15','15 分鐘後'],['30','30 分鐘後'],['45','45 分鐘後']].map(([v,l])=>`<option value="${v}" ${v===prevTime?'selected':''}>${l}</option>`).join('')}</select></label>
+        <label class="f">取餐日期<select id="cDay" style="font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--sheet);padding:10px;color:var(--ink);width:100%">${days.map(d=>`<option value="${d.v}" ${d.v===prevDay?'selected':''}>${d.l}</option>`).join('')}</select></label>
+        <label class="f">取餐時間<select id="cTime" style="font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--sheet);padding:10px;color:var(--ink);width:100%">${timeOptions(prevDay,prevTime)}</select></label>
       </div>
       <div class="tot"><span>共</span><b>${cups} 杯</b></div>
       <button type="button" class="primary" id="checkout">送出訂單</button>
     </div>`:''}
   </aside>`;
 }
+$('bagVeil').addEventListener('change',e=>{if(e.target.id==='cDay')$('cTime').innerHTML=timeOptions(e.target.value,$('cTime').value)});
 $('bagVeil').addEventListener('click',e=>{
   if(e.target.id==='bagVeil'||e.target.id==='closeBag')return closeBag();
   const m=e.target.closest('[data-u]');
   if(m){const it=cart.find(x=>x.uid===m.dataset.u);it.qty+= +m.dataset.d;if(it.qty<=0)cart=cart.filter(x=>x!==it);save();updateBar();renderBag();return}
   if(e.target.id==='checkout'){
     const name=$('cName').value.trim();if(!name){$('cName').focus();$('cName').placeholder='請填寫取餐姓名';$('cName').style.borderColor='#9C4A33';return}
-    e.target.disabled=true;e.target.textContent='送出中…';placeOrder(name,+$('cTime').value);
+    e.target.disabled=true;e.target.textContent='送出中…';placeOrder(name,$('cDay').value,$('cTime').value);
   }
 });
 /* ---------- Firebase ---------- */
@@ -518,21 +519,32 @@ async function submitOrder(o){
     return n});
   return {ok:true,no:String(n).padStart(4,'0')};
 }
-async function placeOrder(name,mins){
-  const t=new Date(Date.now()+mins*60000);const hh=String(t.getHours()).padStart(2,'0'),mm=String(t.getMinutes()).padStart(2,'0');
+/* 取餐時間：今天起 7 天，08:00–22:00 每半小時 */
+const OPEN_H=8,CLOSE_H=22,WEEK='日一二三四五六';
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function slotsFor(day){const out=[];const now=Date.now()+15*60000;
+  for(let m=OPEN_H*60;m<=CLOSE_H*60;m+=30){const hh=String(Math.floor(m/60)).padStart(2,'0'),mm=String(m%60).padStart(2,'0');
+    if(new Date(`${day}T${hh}:${mm}:00`).getTime()>=now)out.push(`${hh}:${mm}`)}return out}
+function pickupDays(){const out=[];const base=new Date();base.setHours(0,0,0,0);
+  for(let i=0;i<7;i++){const d=new Date(base);d.setDate(base.getDate()+i);const v=ymd(d);if(!slotsFor(v).length)continue;
+    out.push({v,l:`${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）${i===0?' 今天':i===1?' 明天':''}`})}return out}
+function timeOptions(day,prev){const s=slotsFor(day);return s.map(x=>`<option value="${x}" ${x===prev?'selected':''}>${x}</option>`).join('')}
+function pickupLabel(day,time){const d=new Date(day+'T00:00:00');return `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）${time}`}
+async function placeOrder(name,day,time){
+  const t=new Date(day+'T00:00:00');const pick=pickupLabel(day,time);
   const first=cart[0];const cups=cart.reduce((a,it)=>a+it.qty,0);
   let res=null;
-  try{res=await submitOrder({name,pickup:`${hh}:${mm}`,items:cart.map(it=>({zh:(byId[it.drinkId].zh+(it.tea?'（'+it.tea+'）':'')).slice(0,40),qty:it.qty,honey:it.sugar,ice:it.ice,note:(it.note||'').slice(0,30)}))})}catch(err){console.error(err);res=null}
+  try{res=await submitOrder({name,pickup:pick,items:cart.map(it=>({zh:(byId[it.drinkId].zh+(it.tea?'（'+it.tea+'）':'')).slice(0,40),qty:it.qty,honey:it.sugar,ice:it.ice,note:(it.note||'').slice(0,30)}))})}catch(err){console.error(err);res=null}
   if(!res||!res.ok){
     const b=$('checkout');if(b){b.disabled=false;b.textContent='送出訂單'}
     toast('訂單沒有送出，請檢查網路後再按一次');return;
   }
   $('rcpt').innerHTML=`<div class="receipt" role="dialog" aria-modal="true" aria-label="訂單已成立">
-    <div style="display:flex;justify-content:space-between;font-family:var(--latin);color:var(--ink-soft)"><span>比比家飲料舖</span><span>${t.getFullYear()}.${t.getMonth()+1}.${t.getDate()}</span></div>
+    <div style="display:flex;justify-content:space-between;font-family:var(--latin);color:var(--ink-soft)"><span>比比家飲料舖</span><span>${new Date().getFullYear()}.${new Date().getMonth()+1}.${new Date().getDate()}</span></div>
     <div class="no">No.${esc(res.no)}</div>
     <div class="art">${drawDrink(byId[first.drinkId],first)}</div>
     <div style="font-family:var(--display);font-size:18px;letter-spacing:.14em">${esc(name)}，訂單已成立</div>
-    <div style="color:var(--ink-soft);font-size:14px">請於 ${hh}:${mm} 取餐</div>
+    <div style="color:var(--ink-soft);font-size:14px">請於 ${pick} 取餐</div>
     <ul>${cart.map(it=>`<li><span>${byId[it.drinkId].zh} × ${it.qty}<br><small style="color:var(--ink-soft)">${esc(optText(it))}</small></span></li>`).join('')}</ul>
     <div class="tot"><span>共</span><b>${cups} 杯</b></div>
     <button type="button" class="primary" id="again">再點一杯</button>

@@ -38,9 +38,9 @@ async function submitOrder(o){
     return n});
   return {ok:true,no:String(n).padStart(4,'0')};
 }''', 1)
-old_call = "try{res=await api('submitOrder',{name,pickup:`${hh}:${mm}`,items:cart.map(it=>({zh:byId[it.drinkId].zh+(it.tea?'（'+it.tea+'）':''),qty:it.qty,honey:it.sugar,ice:it.ice,note:it.note||''}))})}catch(err){res=null}"
+old_call = "try{res=await api('submitOrder',{name,pickup:pick,items:cart.map(it=>({zh:byId[it.drinkId].zh+(it.tea?'（'+it.tea+'）':''),qty:it.qty,honey:it.sugar,ice:it.ice,note:it.note||''}))})}catch(err){res=null}"
 assert old_call in h
-h = h.replace(old_call, "try{res=await submitOrder({name,pickup:`${hh}:${mm}`,items:cart.map(it=>({zh:(byId[it.drinkId].zh+(it.tea?'（'+it.tea+'）':'')).slice(0,40),qty:it.qty,honey:it.sugar,ice:it.ice,note:(it.note||'').slice(0,30)}))})}catch(err){console.error(err);res=null}")
+h = h.replace(old_call, "try{res=await submitOrder({name,pickup:pick,items:cart.map(it=>({zh:(byId[it.drinkId].zh+(it.tea?'（'+it.tea+'）':'')).slice(0,40),qty:it.qty,honey:it.sugar,ice:it.ice,note:(it.note||'').slice(0,30)}))})}catch(err){console.error(err);res=null}")
 
 # ---- admin ----
 s = h.index('/* ---------- 後台'); e = h.index('/* ---------- chrome ---------- */')
