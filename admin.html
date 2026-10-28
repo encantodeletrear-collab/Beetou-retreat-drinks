@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>比比家後台</title>
+<link rel="manifest" href="manifest-admin.webmanifest">
+<meta name="theme-color" content="#F1ECE2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="比比家後台">
+<link rel="apple-touch-icon" href="icon-admin-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@400;600&display=swap">
+<style>
+/* Layout: a quiet shelf of small paper posters, one drink per sheet; a side sheet for choices; a paper receipt at the end */
+:root{
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --paper:#F1ECE2;      /* page stock */
+  --sheet:#F8F5EE;      /* poster stock */
+  --ink:#2A2622;
+  --ink-soft:#756B60;
+  --rule:#DCD3C3;
+  --moss:#6E7650;       /* selection */
+  --display:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --latin:"Lora","Georgia",serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img,svg{max-width:100%}
+body{margin:0}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{
+  font-family:var(--body);font-weight:400;font-size:15px;line-height:1.7;
+  line-break:strict;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .24  0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));padding-block:0 140px}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:1.5px solid var(--ink);outline-offset:3px}
+
+/* header */
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-block:40px 28px;border-bottom:1px solid var(--rule)}
+.mark{display:flex;flex-direction:column;gap:2px}
+.mark h1{font-family:var(--display);font-weight:600;font-size:clamp(26px,4vw,34px);letter-spacing:.18em;margin:0;line-height:1.2}
+.mark span{font-family:var(--latin);font-style:italic;font-size:16px;color:var(--ink-soft)}
+.bag-btn{display:flex;align-items:center;gap:10px;background:none;border:1px solid var(--ink);padding:8px 16px;border-radius:999px;font-size:14px;white-space:nowrap}
+.bag-btn b{font-family:var(--latin);font-weight:400;font-size:18px;line-height:1}
+
+/* filters */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;padding-block:22px 26px}
+.tab{background:none;border:none;padding:4px 12px;font-size:14px;color:var(--ink-soft);border-radius:999px;letter-spacing:.08em}
+.tab[aria-pressed="true"]{color:var(--paper);background:var(--ink)}
+
+/* posters */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:22px}
+.poster{position:relative;display:flex;flex-direction:column;text-align:left;border:none;padding:14px 14px 16px;background:var(--sheet);
+  box-shadow:0 1px 0 rgba(60,45,30,.08),0 14px 26px -20px rgba(60,45,30,.45);transition:transform .25s ease,box-shadow .25s ease;min-width:0}
+.poster:hover{transform:translateY(-3px);box-shadow:0 1px 0 rgba(60,45,30,.08),0 20px 30px -20px rgba(60,45,30,.5)}
+.poster .meta{display:flex;justify-content:space-between;font-family:var(--latin);font-size:13px;color:var(--ink-soft);letter-spacing:.04em}
+.poster .art{aspect-ratio:5/6;max-width:100%;display:grid;place-items:center;padding:8% 6% 0}
+.poster .art svg{width:78%;height:auto;display:block}
+.poster .cap{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:6px}
+.poster .zh{font-family:var(--display);font-size:16px;letter-spacing:.08em;line-height:1.4}
+.poster .en{font-family:var(--latin);font-style:italic;font-size:14px;color:var(--ink-soft);line-height:1.2}
+.poster .pr{font-family:var(--latin);font-size:18px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* overlay shell */
+.veil{position:fixed;inset:0;background:rgba(42,38,34,.32);z-index:20;display:flex;justify-content:flex-end}
+.panel{width:min(980px,100%);height:100%;background:var(--paper);display:grid;grid-template-columns:1fr 1fr;overflow:hidden;
+  background-image:inherit;box-shadow:-20px 0 40px -30px rgba(0,0,0,.4);animation:slide .35s ease}
+@keyframes slide{from{transform:translateX(24px);opacity:.6}}
+@media (prefers-reduced-motion:reduce){.panel,.poster{animation:none;transition:none}}
+.panel .left{background:var(--sheet);display:flex;flex-direction:column;justify-content:space-between;padding:28px;min-width:0}
+.panel .left .art{flex:1;display:grid;place-items:center}
+.panel .left .art svg{width:min(62%,300px);height:auto}
+.big-zh{font-family:var(--display);font-size:clamp(24px,3vw,32px);letter-spacing:.2em;line-height:1.3;margin:0;text-wrap:balance}
+.big-en{font-family:var(--latin);font-style:italic;font-size:18px;color:var(--ink-soft)}
+.panel .right{overflow-y:auto;padding:28px max(24px,env(safe-area-inset-right,0px)) 28px 28px;display:flex;flex-direction:column;gap:22px;min-width:0}
+.close{align-self:flex-end;background:none;border:none;font-family:var(--latin);font-size:16px;color:var(--ink-soft);padding:4px 0}
+.desc{color:var(--ink-soft);margin:0;max-width:34em}
+fieldset{border:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+legend{font-size:12px;letter-spacing:.24em;color:var(--ink-soft);padding:0;margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--rule);background:transparent;padding:6px 14px;border-radius:999px;font-size:14px;transition:background .15s,border-color .15s}
+.chip small{color:var(--ink-soft);font-family:var(--latin);font-size:13px;margin-left:4px}
+.chip[aria-pressed="true"]{background:var(--moss);border-color:var(--moss);color:var(--sheet)}
+.chip[aria-pressed="true"] small{color:var(--sheet)}
+.chip:disabled{opacity:.45;cursor:default}
+.qty{display:flex;align-items:center;gap:14px}
+.qty button{width:34px;height:34px;border-radius:50%;border:1px solid var(--ink);background:none;font-size:18px;line-height:1}
+.qty output{font-family:var(--latin);font-size:22px;min-width:1.5em;text-align:center;font-variant-numeric:tabular-nums}
+.addbar{margin-top:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;border-top:1px solid var(--rule);padding-top:18px;flex-wrap:wrap}
+.addbar .sum{font-family:var(--latin);font-size:26px;font-variant-numeric:tabular-nums}
+.primary{background:var(--ink);color:var(--paper);border:none;padding:12px 26px;border-radius:999px;font-size:15px;letter-spacing:.12em}
+.primary:disabled{opacity:.35;cursor:default}
+.ghost{background:none;border:1px solid var(--ink);padding:11px 22px;border-radius:999px;font-size:15px;letter-spacing:.1em}
+textarea,input[type=text]{width:100%;font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--sheet);padding:10px 12px;color:var(--ink);border-radius:2px;resize:vertical}
+
+/* bag */
+.bag{width:min(460px,100%);height:100%;background:var(--paper);background-image:inherit;display:flex;flex-direction:column;animation:slide .35s ease;box-shadow:-20px 0 40px -30px rgba(0,0,0,.4)}
+.bag .head{display:flex;justify-content:space-between;align-items:baseline;padding:28px max(24px,env(safe-area-inset-right,0px)) 16px 24px;border-bottom:1px solid var(--rule)}
+.bag .head h2{font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:.2em;margin:0}
+.bag .body{flex:1;overflow-y:auto;padding:8px max(24px,env(safe-area-inset-right,0px)) 8px 24px}
+.line{display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;padding-block:14px;border-bottom:1px dashed var(--rule)}
+.line svg{width:56px;height:auto;background:var(--sheet)}
+.line .nm{font-family:var(--display);letter-spacing:.1em}
+.line .op{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+.line .rt{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.line .rt .p{font-family:var(--latin);font-size:18px;font-variant-numeric:tabular-nums}
+.mini{display:flex;align-items:center;gap:8px}
+.mini button{width:26px;height:26px;border-radius:50%;border:1px solid var(--rule);background:none;font-size:14px;line-height:1}
+.mini span{font-family:var(--latin);font-size:16px;min-width:1em;text-align:center}
+.empty{padding:60px 0;text-align:center;color:var(--ink-soft)}
+.empty svg{width:90px;opacity:.75}
+.bag .foot{padding:18px max(24px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) 24px;border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:14px}
+.tot{display:flex;justify-content:space-between;align-items:baseline}
+.tot b{font-family:var(--latin);font-weight:400;font-size:28px;font-variant-numeric:tabular-nums}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.f{font-size:12px;letter-spacing:.2em;color:var(--ink-soft);display:flex;flex-direction:column;gap:6px}
+
+/* receipt */
+.receipt-veil{position:fixed;inset:0;z-index:30;background:rgba(42,38,34,.35);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
+.receipt{width:min(380px,100%);background:var(--sheet);padding:30px 28px 26px;box-shadow:0 30px 50px -30px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:14px;animation:slide .4s ease}
+.receipt .no{font-family:var(--latin);font-size:56px;line-height:1;letter-spacing:.02em}
+.receipt .art svg{width:110px;display:block;margin:6px auto}
+.receipt ul{list-style:none;padding:0;margin:0;border-top:1px dashed var(--rule)}
+.receipt li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--rule);font-size:13.5px}
+
+
+/* floating bag bar */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;justify-content:center;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));pointer-events:none}
+.bar button{pointer-events:auto;display:flex;align-items:center;gap:18px;background:var(--ink);color:var(--paper);border:none;border-radius:999px;padding:12px 14px 12px 24px;box-shadow:0 14px 30px -14px rgba(0,0,0,.55);font-size:14px;letter-spacing:.1em}
+.bar button b{font-family:var(--latin);font-weight:400;font-size:20px;letter-spacing:0}
+.bar button i{font-style:normal;background:var(--paper);color:var(--ink);border-radius:999px;padding:4px 14px}
+
+.toast{position:fixed;left:50%;top:calc(18px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--sheet);border:1px solid var(--rule);padding:8px 18px;border-radius:999px;font-size:13.5px;z-index:40;box-shadow:0 10px 20px -14px rgba(0,0,0,.4)}
+.hbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.admin{width:100%;height:100%;background:var(--paper);background-image:inherit;display:flex;flex-direction:column;animation:slide .35s ease;box-shadow:-20px 0 40px -30px rgba(0,0,0,.4)}
+.admin .tally{display:flex;flex-wrap:wrap;gap:6px 14px;padding-block:14px;border-bottom:1px solid var(--rule);font-size:13.5px}
+.admin .tally b{font-family:var(--latin);font-weight:400}
+.ord{padding-block:16px;border-bottom:1px dashed var(--rule);display:flex;flex-direction:column;gap:8px}
+.ord.done{opacity:.45}
+.ord .h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ord .h .n{font-family:var(--latin);font-size:22px}
+.ord .h .who{font-family:var(--display);letter-spacing:.1em;font-size:16px}
+.ord .t{font-size:12.5px;color:var(--ink-soft)}
+.ord ul{list-style:none;margin:0;padding:0;font-size:14px}
+.ord li{padding:2px 0}
+.ord li small{color:var(--ink-soft)}
+.note-warn{font-size:13px;color:#8A3E2A;line-height:1.6}
+footer{margin-top:56px;font-family:var(--latin);font-style:italic;color:var(--ink-soft);font-size:14px}
+
+@media (max-width:760px){
+  .veil{align-items:flex-end}
+  .panel{grid-template-columns:1fr;height:auto;max-height:94%;overflow-y:auto;border-radius:14px 14px 0 0}
+  .panel .left{padding:22px 20px 14px}
+  .panel .left .art svg{width:min(44%,200px)}
+  .panel .right{overflow:visible;padding:20px max(20px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
+  .grid{gap:14px}
+  .poster .zh{font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- acrylic flat shape: irregular edge + dry brush streaks -->
+    <filter id="paint" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="4" result="w"/>
+      <feDisplacementMap in="SourceGraphic" in2="w" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="1.1 .05" numOctaves="2" seed="9" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 .15  0 0 0 0 .12  0 0 0 0 .1  0 0 0 .55 -.18" result="dark"/>
+      <feComposite in="dark" in2="d" operator="in" result="darkIn"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".9 .07" numOctaves="1" seed="2" result="s2"/>
+      <feColorMatrix in="s2" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 .97  0 0 0 .7 -.38" result="light"/>
+      <feComposite in="light" in2="d" operator="in" result="lightIn"/>
+      <feMerge><feMergeNode in="d"/><feMergeNode in="darkIn"/><feMergeNode in="lightIn"/></feMerge>
+    </filter>
+    <!-- delicate ink line wobble -->
+    <filter id="line" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="1" seed="11" result="w"/>
+      <feDisplacementMap in="SourceGraphic" in2="w" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <div class="mark">
+      <h1>比比家飲料舖</h1>
+      <span>tea, coffee &amp; cocoa · 18 cups on paper</span>
+    </div>
+    <div class="hbtns"><button class="bag-btn" id="adminBtn" type="button" hidden>後台 <b id="pendCount">0</b></button><button class="bag-btn" id="bagTop" type="button">購物袋 <b id="bagCount">0</b></button></div>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="飲品分類"></nav>
+  <main class="grid" id="grid"></main>
+  <footer>Every cup is drawn by hand.</footer>
+</div>
+
+<div class="bar" id="bar" hidden><button type="button" id="barBtn"><span id="barTxt">購物袋</span><b id="barSum">0 杯</b><i>查看</i></button></div>
+<div class="veil" id="detail" hidden></div>
+<div class="veil" id="bagVeil" hidden></div>
+<div class="receipt-veil" id="rcpt" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<div class="veil" id="adminVeil" hidden></div>
+
+<script>
+/* ---------- data ---------- */
+// price: 暫定價格，待店家提供
+const MILK='#EEE7D9', OOLONG='#9A4E30', TWG='#8B3D22', KER='#93431F', YUZU='#E5BC45', MATCHA='#8EA05A', PEACH='#E8A797', COFFEE='#3A2820', HOJI='#8C5B3B', COCOA='#5A3626';
+const DRINKS=[
+ {id:'koh',zh:'KOH椰子水',en:'KOH Coconut Water',cat:'椰子水',price:80,hot:false,liquid:'#E9E6D7',straw:'#7A5435',obj:'coconut',fixedSugar:true,c:'#7A5435',desc:'百分之百椰子水，不另外調味。'},
+ {id:'kohmilk',zh:'KOH椰子水鮮奶',en:'KOH Coconut Water Milk',cat:'椰子水',price:95,hot:false,layers:[{c:MILK,f:0},{c:'#E3DFCC',f:.55}],straw:'#7A5435',obj:'coconut',c:'#7A5435',desc:'椰子水與鮮奶，清爽的奶香。'},
+ {id:'roolatte',zh:'紅烏龍拿鐵',en:'Red Oolong Latte',cat:'茶',price:85,hot:true,layers:[{c:MILK,f:0},{c:OOLONG,f:.45}],straw:INKC(),obj:'leaf',objColor:'#6B3A2A',c:OOLONG,desc:'重焙紅烏龍，加入鮮奶。'},
+ {id:'rooyuzu',zh:'紅烏龍柚子茶',en:'Red Oolong Yuzu Tea',cat:'茶',price:85,hot:true,liquid:'#B3622F',straw:OOLONG,obj:'yuzuSlice',c:OOLONG,desc:'紅烏龍與柚子醬，果香帶焙火。'},
+ {id:'beauty',zh:'東方美人茶',en:'Oriental Beauty',cat:'茶',price:0,hot:true,liquid:'#C27B3B',straw:'#6E7650',obj:'bud',c:'#A8612F',desc:'老的東方美人，又稱五色茶，新做好有五種顏色，有的會說白毛猴，芽尖有白毫'},
+ {id:'beautylatte',zh:'東方美人茶拿鐵',en:'Oriental Beauty Latte',cat:'茶',price:0,hot:false,layers:[{c:MILK,f:0},{c:'#C27B3B',f:.45}],straw:INKC(),obj:'bud',c:'#A8612F',desc:'東方美人茶加入鮮奶。'},
+ {id:'honey',zh:'蜜茶',en:'Honey Tea',cat:'茶',price:0,hot:true,liquid:'#CC9C46',straw:'#8C5A2B',obj:'honeyjar',c:'#B9822F',desc:'茶湯加入蜂蜜。'},
+ {id:'oldblack',zh:'老紅茶',en:'Aged Black Tea',cat:'茶',price:0,hot:true,liquid:'#6A2C1A',straw:INKC(),obj:'leaf',objColor:'#4A2418',c:'#6A2C1A',desc:'老紅茶，茶色深。'},
+ {id:'oldlatte',zh:'老紅茶拿鐵',en:'Aged Black Tea Latte',cat:'茶',price:0,hot:false,layers:[{c:MILK,f:0},{c:'#6A2C1A',f:.45}],straw:INKC(),obj:'leaf',objColor:'#4A2418',c:'#6A2C1A',desc:'老紅茶加入鮮奶。'},
+ {id:'yuzublack',zh:'柚子紅茶',en:'Yuzu Black Tea',cat:'茶',price:0,hot:true,liquid:'#B05A2B',straw:'#6E7650',obj:'yuzuSlice',c:'#8E4422',desc:'紅茶加入柚子。'},
+ {id:'pot',zh:'鍋煮奶茶',en:'Stovetop Milk Tea',cat:'拿鐵',price:0,hot:true,liquid:'#B98760',straw:TWG,obj:'pot',c:TWG,teas:['紅烏龍','東方美人','老紅茶','TWG紅茶','伯爵茶','Kericho Gold斑馬經典紅茶'],desc:'選一款茶葉，和鮮奶一起在鍋中慢煮。'},
+ {id:'earl',zh:'伯爵茶',en:'Earl Grey',cat:'茶',price:0,hot:true,liquid:'#9A5532',straw:INKC(),obj:'bergamot',c:'#7C6A8E',desc:'紅茶帶佛手柑香氣。'},
+ {id:'earlmilk',zh:'伯爵鮮奶茶',en:'Earl Grey Milk Tea',cat:'拿鐵',price:0,hot:true,layers:[{c:MILK,f:0},{c:'#9A5532',f:.45}],straw:INKC(),obj:'bergamot',c:'#7C6A8E',desc:'伯爵茶加入鮮奶。'},
+ {id:'twgblack',zh:'TWG紅茶',en:'TWG Black Tea',cat:'TWG',price:90,hot:true,liquid:TWG,straw:INKC(),obj:'tin',c:TWG,desc:'TWG紅茶，單純喝茶香。'},
+ {id:'twgyuzu',zh:'TWG柚香紅茶',en:'TWG Yuzu Black Tea',cat:'TWG',price:105,hot:true,liquid:'#A9532A',straw:INKC(),obj:'yuzuSlice',c:TWG,desc:'TWG紅茶加柚子，酸甜明亮。'},
+ {id:'twglatte',zh:'TWG紅茶拿鐵',en:'TWG Black Tea Latte',cat:'TWG',price:110,hot:true,layers:[{c:MILK,f:0},{c:TWG,f:.45}],straw:INKC(),obj:'tin',c:TWG,desc:'TWG紅茶在下，鮮奶在上。'},
+ {id:'fuji',zh:'富士山忍野八海桃抹茶',en:'Mt. Fuji Peach Matcha',cat:'抹茶・焙茶',price:120,hot:false,layers:[{c:MATCHA,f:0},{c:PEACH,f:.5}],straw:INKC(),obj:'peach',fuji:true,c:MATCHA,desc:'抹茶疊在白桃上，像山頂的雪與山腳的湖。'},
+ {id:'fujilatte',zh:'富士山忍野八海桃抹茶拿鐵',en:'Mt. Fuji Peach Matcha Latte',cat:'抹茶・焙茶',price:130,hot:false,layers:[{c:MATCHA,f:0},{c:MILK,f:.3},{c:PEACH,f:.62}],straw:INKC(),obj:'peach',fuji:true,c:MATCHA,desc:'白桃、鮮奶、抹茶三層。'},
+ {id:'jeju',zh:'濟州島柚子茶',en:'Jeju Citron Tea',cat:'柚子',price:90,hot:true,liquid:'#E2B03E',straw:'#6E7650',obj:'yuzuWhole',c:'#C98E2C',desc:'濟州島柚子醬，連果皮一起泡。'},
+ {id:'ker',zh:'Kericho Gold斑馬經典紅茶',en:'Kericho Gold Classic',cat:'Kericho Gold',price:70,hot:true,liquid:KER,zebra:true,obj:'greenLeaf',c:KER,desc:'肯亞Kericho Gold紅茶，濃而不澀。'},
+ {id:'kerlatte',zh:'Kericho Gold斑馬經典紅茶拿鐵',en:'Kericho Gold Classic Latte',cat:'Kericho Gold',price:85,hot:true,layers:[{c:MILK,f:0},{c:KER,f:.45}],zebra:true,obj:'greenLeaf',c:KER,desc:'Kericho Gold紅茶加鮮奶。'},
+ {id:'keryuzu',zh:'Kericho Gold斑馬經典柚香紅茶',en:'Kericho Gold Yuzu',cat:'Kericho Gold',price:85,hot:true,liquid:'#AE5528',zebra:true,obj:'yuzuSlice',c:KER,desc:'Kericho Gold紅茶加柚子。'},
+ {id:'black',zh:'黑咖啡',en:'Black Coffee',cat:'咖啡・可可',price:70,hot:true,liquid:COFFEE,straw:'#F2EEE5',obj:'beans',c:COFFEE,desc:'單純的黑咖啡。'},
+ {id:'latte',zh:'拿鐵',en:'Caffè Latte',cat:'咖啡・可可',price:90,hot:true,layers:[{c:MILK,f:0},{c:'#6B4430',f:.5}],straw:INKC(),obj:'beans',c:'#6B4430',desc:'濃縮咖啡與鮮奶。'},
+ {id:'hoji',zh:'焙茶拿鐵',en:'Hojicha Latte',cat:'抹茶・焙茶',price:100,hot:false,layers:[{c:MILK,f:0},{c:HOJI,f:.42}],straw:INKC(),obj:'twig',c:HOJI,desc:'焙茶的炒香與鮮奶。'},
+ {id:'cocoa',zh:'Caotina冰可可',en:'Caotina Iced Cocoa',cat:'咖啡・可可',price:110,hot:false,liquid:COCOA,straw:'#F2EEE5',obj:'cocoa',c:COCOA,desc:'瑞士Caotina可可粉調製。'}
+];
+function INKC(){return '#2A2622'}
+const CATS=['全部','椰子水','茶','拿鐵','抹茶・焙茶','咖啡','可可'];
+const CAT_OF={koh:'椰子水',kohmilk:'椰子水',
+ rooyuzu:'茶',beauty:'茶',honey:'茶',oldblack:'茶',yuzublack:'茶',earl:'茶',twgblack:'茶',twgyuzu:'茶',jeju:'茶',ker:'茶',keryuzu:'茶',
+ roolatte:'拿鐵',beautylatte:'拿鐵',oldlatte:'拿鐵',pot:'拿鐵',earlmilk:'拿鐵',twglatte:'拿鐵',kerlatte:'拿鐵',
+ fuji:'抹茶・焙茶',fujilatte:'抹茶・焙茶',hoji:'抹茶・焙茶',
+ black:'咖啡',latte:'咖啡',cocoa:'可可'};
+DRINKS.forEach((d,i)=>{d.cat=CAT_OF[d.id];d._i=i});
+DRINKS.sort((x,y)=>CATS.indexOf(x.cat)-CATS.indexOf(y.cat)||x._i-y._i);
+DRINKS.forEach((d,i)=>d.no=String(i+1).padStart(2,'0'));
+const SUGARS=['不加蜂蜜','加蜂蜜'];
+const ICES=['正常冰','少冰','微冰','去冰','溫','熱'];
+const byId=Object.fromEntries(DRINKS.map(d=>[d.id,d]));
+const INK='#2A2622', SHADOW='#DCCFB8';
+const iceOpts=d=>d.hot?ICES:ICES.slice(0,4);
+
+/* ---------- hand drawing ---------- */
+function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let t=seed;return()=>{t=t+0x6D2B79F5|0;let r=Math.imul(t^t>>>15,1|t);r=r+Math.imul(r^r>>>7,61|r)^r;return((r^r>>>14)>>>0)/4294967296}}
+function hand(pts,R,j=.7,closed=false){
+  const out=[];const seq=closed?[...pts,pts[0]]:pts;
+  for(let i=0;i<seq.length-1;i++){
+    const [x1,y1]=seq[i],[x2,y2]=seq[i+1];const len=Math.hypot(x2-x1,y2-y1);const n=Math.max(1,Math.round(len/9));
+    const nx=-(y2-y1)/(len||1),ny=(x2-x1)/(len||1);
+    for(let k=0;k<n;k++){const t=k/n;const o=(k===0?0:(R()-.5)*2*j);out.push([x1+(x2-x1)*t+nx*o,y1+(y2-y1)*t+ny*o])}
+  }
+  if(!closed)out.push(seq[seq.length-1]);
+  return 'M'+out.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')+(closed?'Z':'');
+}
+const P=(d,fill,f='paint')=>`<path d="${d}" fill="${fill}" filter="url(#${f})"/>`;
+const L=(d,w=1.2,op=1)=>`<path d="${d}" stroke="${INK}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="${op}" filter="url(#line)"/>`;
+let clipN=0;
+
+function stillLife(d,R,B){
+  const ox=154, oy=B, s=[];
+  switch(d.obj){
+    case 'coconut':
+      s.push(P(`M${ox-16} ${oy-9} A16 13 0 0 0 ${ox+16} ${oy-9}Z`,'#7A5435'));
+      s.push(`<ellipse cx="${ox}" cy="${oy-9}" rx="13" ry="3.6" fill="#F5F1E6" filter="url(#paint)"/>`);
+      s.push(L(`M${ox-16} ${oy-9} A16 13 0 0 0 ${ox+16} ${oy-9}`,.8,.8));break;
+    case 'leaf':
+      s.push(P(`M${ox-12} ${oy-3} Q${ox-4} ${oy-16} ${ox+12} ${oy-8} Q${ox+2} ${oy-1} ${ox-12} ${oy-3}Z`,d.objColor));
+      s.push(P(`M${ox+6} ${oy-1} Q${ox+12} ${oy-8} ${ox+20} ${oy-3} Q${ox+14} ${oy+1} ${ox+6} ${oy-1}Z`,d.objColor));break;
+    case 'greenLeaf':
+      s.push(P(`M${ox-14} ${oy-2} Q${ox} ${oy-18} ${ox+16} ${oy-6} Q${ox} ${oy+4} ${ox-14} ${oy-2}Z`,'#6E7650'));
+      s.push(L(`M${ox-14} ${oy-2} Q${ox} ${oy-7} ${ox+16} ${oy-6}`,.8));break;
+    case 'yuzuSlice':{let seg='';for(let i=0;i<7;i++){const a=i*Math.PI*2/7;seg+=`M${ox} ${oy-12} L${(ox+Math.cos(a)*9).toFixed(1)} ${(oy-12+Math.sin(a)*9).toFixed(1)} `}
+      s.push(`<circle cx="${ox}" cy="${oy-12}" r="12.5" fill="${YUZU}" filter="url(#paint)"/><circle cx="${ox}" cy="${oy-12}" r="9.5" fill="#F3E2A0" filter="url(#paint)"/><path d="${seg}" stroke="${YUZU}" stroke-width="1.5"/>`);
+      s.push(L(`M${ox+12.5} ${oy-12} A12.5 12.5 0 1 1 ${ox+12.4} ${oy-14}`,.8));break}
+    case 'yuzuWhole':
+      s.push(`<circle cx="${ox}" cy="${oy-12}" r="12" fill="#E2A53A" filter="url(#paint)"/>`);
+      s.push(P(`M${ox} ${oy-24} Q${ox+8} ${oy-34} ${ox+16} ${oy-29} Q${ox+8} ${oy-22} ${ox} ${oy-24}Z`,'#6E7650'));
+      s.push(L(`M${ox} ${oy-24} L${ox} ${oy-21}`,.9));break;
+    case 'tin':
+      s.push(P(hand([[ox-10,oy-26],[ox+10,oy-26],[ox+10,oy],[ox-10,oy]],R,.5,true),'#C9A24A'));
+      s.push(P(hand([[ox-10,oy-17],[ox+10,oy-17],[ox+10,oy-11],[ox-10,oy-11]],R,.3,true),d.c));
+      s.push(L(hand([[ox-11,oy-26],[ox+11,oy-26]],R,.3),.9));break;
+    case 'bergamot':
+      s.push(`<circle cx="${ox}" cy="${oy-12}" r="12" fill="#B9B54A" filter="url(#paint)"/>`);
+      s.push(P(`M${ox-2} ${oy-24} Q${ox-12} ${oy-33} ${ox-18} ${oy-26} Q${ox-9} ${oy-21} ${ox-2} ${oy-24}Z`,'#6E7650'));
+      s.push(L(`M${ox} ${oy-24} L${ox} ${oy-21}`,.9));
+      for(let i=0;i<4;i++)s.push(`<circle cx="${ox+17+(i%2)*4}" cy="${oy-4-i*5}" r="2.3" fill="#7C6A8E" filter="url(#paint)"/>`);
+      break;
+    case 'pot':
+      s.push(P(hand([[ox-13,oy-14],[ox+11,oy-14],[ox+9,oy],[ox-11,oy]],R,.5,true),'#9AA3A2'));
+      s.push(L(hand([[ox+11,oy-12],[ox+26,oy-16]],R,.3),1.3));
+      s.push(L(hand([[ox-14,oy-14],[ox+12,oy-14]],R,.3),.9));break;
+    case 'peach':
+      s.push(`<circle cx="${ox}" cy="${oy-12}" r="12" fill="${PEACH}" filter="url(#paint)"/>`);
+      s.push(L(`M${ox+1} ${oy-23} Q${ox-4} ${oy-12} ${ox+1} ${oy-1}`,.8,.8));
+      s.push(P(`M${ox+1} ${oy-23} Q${ox+10} ${oy-32} ${ox+17} ${oy-26} Q${ox+9} ${oy-20} ${ox+1} ${oy-23}Z`,'#6E7650'));break;
+    case 'beans':
+      for(const [bx,by,a] of [[ox-6,oy-5,-20],[ox+8,oy-4,25]]){
+        s.push(`<ellipse cx="${bx}" cy="${by}" rx="7" ry="4.6" transform="rotate(${a} ${bx} ${by})" fill="#4A3022" filter="url(#paint)"/>`);
+        s.push(L(`M${bx-5} ${by} Q${bx} ${by-2} ${bx+5} ${by}`,.7,.7).replace('<path',`<path transform="rotate(${a} ${bx} ${by})"`));}break;
+    case 'twig':
+      s.push(P(`M${ox-16} ${oy-3} L${ox+16} ${oy-9} L${ox+16} ${oy-6} L${ox-16} ${oy}Z`,'#8C5B3B'));
+      s.push(P(`M${ox-2} ${oy-6} Q${ox+4} ${oy-16} ${ox+14} ${oy-14} Q${ox+6} ${oy-6} ${ox-2} ${oy-6}Z`,'#6B4430'));break;
+    case 'bud':
+      s.push(L(hand([[ox-18,oy-2],[ox+16,oy-14]],R,.4),1,.85));
+      s.push(P(`M${ox-12} ${oy-4} Q${ox-14} ${oy-16} ${ox-4} ${oy-18} Q${ox-4} ${oy-8} ${ox-12} ${oy-4}Z`,'#8C6A3A'));
+      s.push(P(`M${ox-2} ${oy-8} Q${ox+2} ${oy-1} ${ox+12} ${oy-4} Q${ox+6} ${oy-12} ${ox-2} ${oy-8}Z`,'#B56B3A'));
+      s.push(P(`M${ox+6} ${oy-11} Q${ox+4} ${oy-22} ${ox+12} ${oy-25} Q${ox+14} ${oy-16} ${ox+6} ${oy-11}Z`,'#7E8B55'));
+      s.push(`<path d="M${ox+13} ${oy-13} Q${ox+15} ${oy-23} ${ox+21} ${oy-24} Q${ox+21} ${oy-16} ${ox+13} ${oy-13}Z" fill="#F7F3EA" stroke="${INK}" stroke-width=".6" filter="url(#line)"/>`);break;
+    case 'honeyjar':
+      s.push(P(hand([[ox-10,oy-20],[ox+10,oy-20],[ox+11,oy],[ox-11,oy]],R,.5,true),'#D9A23A'));
+      s.push(P(hand([[ox-8,oy-26],[ox+8,oy-26],[ox+8,oy-20],[ox-8,oy-20]],R,.3,true),'#8C5A2B'));
+      s.push(L(hand([[ox-11,oy],[ox-10,oy-20],[ox+10,oy-20],[ox+11,oy]],R,.3),.8,.8));break;
+    case 'cocoa':
+      s.push(P(hand([[ox-12,oy-12],[ox+2,oy-13],[ox+3,oy],[ox-12,oy]],R,.6,true),COCOA));
+      s.push(P(hand([[ox+7,oy-7],[ox+17,oy-8],[ox+17,oy],[ox+7,oy]],R,.5,true),'#7A4A33'));break;
+  }
+  return s.join('');
+}
+function fujiBg(B){
+  // a few lines suggesting the mountain and the lake behind the cup
+  return `<path d="M8 ${B-28} L48 ${B-74} L60 ${B-74} L104 ${B-28}" stroke="${INK}" stroke-width="1" fill="none" opacity=".55" filter="url(#line)"/>`+
+    `<path d="M41 ${B-66} L48 ${B-74} L60 ${B-74} L68 ${B-65} L62 ${B-62} L55 ${B-66} L48 ${B-61}Z" fill="#FBF9F3" stroke="${INK}" stroke-width=".6" opacity=".9" filter="url(#line)"/>`+
+    `<path d="M14 ${B-18} L60 ${B-18} M24 ${B-12} L52 ${B-12}" stroke="#7E95A0" stroke-width="1.6" fill="none" opacity=".55" stroke-linecap="round" filter="url(#line)"/>`;
+}
+function drawDrink(d,o={}){
+  const R=rng(hash(d.id));
+  const ice=o.ice||(d.hot===false?'少冰':'少冰');
+  const hot=ice==='溫'||ice==='熱';
+  const s=[];const B=176;
+  s.push(P(hand([[58,B+4],[142,B+4],[136,B+9],[64,B+9]],R,1,true),SHADOW));
+  s.push(L(hand([[42,B+5],[160,B+5]],R,.6),1,.7));
+  if(d.fuji)s.push(fujiBg(B));
+  const steam=(top,n)=>{let r='';for(let i=0;i<n;i++){const x=n===1?100:88+i*12;let p=[];for(let y=top;y>top-38;y-=5)p.push([x+Math.sin((y+i*7)/6)*3,y]);r+=L(hand(p,R,.3),.9,.55)}return r};
+
+  if(hot){
+    // paper cup with lid; the sleeve carries the drink's colour
+    const T=72,hwT=29,hwB=21,h=B-T;const xAt=(y,sd)=>100+sd*(hwT-(y-T)/h*(hwT-hwB));
+    const body=[[xAt(T,-1),T],[xAt(T,1),T],[xAt(B,1),B],[xAt(B,-1),B]];
+    s.push(P(hand(body,R,.5,true),'#F7F3EA'));
+    const y1=T+28,y2=T+66;
+    s.push(P(hand([[xAt(y1,-1),y1],[xAt(y1,1),y1],[xAt(y2,1),y2],[xAt(y2,-1),y2]],R,.5,true),d.c));
+    s.push(L(hand([body[0],body[3],body[2],body[1]],R,.4),1.2));
+    s.push(P(hand([[xAt(T,-1)-4,T-9],[xAt(T,1)+4,T-9],[xAt(T,1)+4,T],[xAt(T,-1)-4,T]],R,.3,true),'#E4DCCD'));
+    s.push(L(hand([[xAt(T,-1)-4,T],[xAt(T,-1)-4,T-9],[xAt(T,1)+4,T-9],[xAt(T,1)+4,T],[xAt(T,-1)-4,T]],R,.3),1.1));
+    s.push(L(hand([[86,T-9],[89,T-15],[111,T-15],[114,T-9]],R,.3),1));
+    s.push(steam(T-20,ice==='熱'?3:1));
+    s.push(stillLife(d,R,B));
+    return wrap(s);
+  }
+
+  const T=62,h=B-T,hwT=31,hwB=23;const xAt=(y,sd)=>100+sd*(hwT-(y-T)/h*(hwT-hwB));
+  const yL=T+12;const cid='c'+(++clipN);
+  const liq=[[xAt(yL,-1)+1,yL],[xAt(yL,1)-1,yL],[xAt(B,1)-1.5,B-1.5],[xAt(B,-1)+1.5,B-1.5]];
+  s.push(`<clipPath id="${cid}"><path d="M${liq.map(p=>p.join(' ')).join(' L')}Z"/></clipPath>`);
+  // straw (behind liquid)
+  const st=[[104,B-26],[120,T-34]];
+  if(d.zebra){s.push(`<path d="${hand(st,R,.3)}" stroke="#F8F5EE" stroke-width="7" fill="none" filter="url(#paint)"/><path d="${hand(st,R,.3)}" stroke="${INK}" stroke-width="7" stroke-dasharray="4 4.5" fill="none" filter="url(#paint)"/>`)}
+  else if(d.straw){s.push(`<path d="${hand(st,R,.4)}" stroke="${d.straw}" stroke-width="6.5" fill="none" filter="url(#paint)"/>`);if(d.straw.startsWith('#F'))s.push(L(hand([[101,B-26],[117,T-35]],R,.3),.6,.6)+L(hand([[107,B-25],[123,T-33]],R,.3),.6,.6))}
+  // liquid, top layer first, deeper layers drawn over from their boundary down
+  if(d.layers){
+    s.push(P(hand(liq,R,.8,true),d.layers[0].c));
+    let inner='';
+    for(let i=1;i<d.layers.length;i++){const yb=yL+(B-yL)*d.layers[i].f;
+      const wave=[];for(let x=xAt(yb,-1)-2;x<=xAt(yb,1)+2;x+=7)wave.push([x,yb+Math.sin(x/6+i)*2.2]);
+      inner+=P(hand([...wave,[xAt(B,1)+2,B+2],[xAt(B,-1)-2,B+2]],R,.5,true),d.layers[i].c);}
+    s.push(`<g clip-path="url(#${cid})">${inner}</g>`);
+  }else s.push(P(hand(liq,R,.8,true),d.liquid));
+  // ice
+  const iceN={'正常冰':3,'少冰':2,'微冰':1}[ice]||0;let cubes='';
+  for(let i=0;i<iceN;i++){const cx=82+i*15+R()*4,cy=yL+10+R()*12,a=(R()*40-20)*Math.PI/180,w=12;
+    const pts=[[-w/2,-w/2],[w/2,-w/2],[w/2,w/2],[-w/2,w/2]].map(([x,y])=>[cx+x*Math.cos(a)-y*Math.sin(a),cy+x*Math.sin(a)+y*Math.cos(a)]);
+    cubes+=`<path d="${hand(pts,R,.5,true)}" fill="#FBF8F1" fill-opacity=".5" stroke="${INK}" stroke-width=".8" filter="url(#line)"/>`}
+  s.push(`<g clip-path="url(#${cid})">${cubes}</g>`);
+  // cup
+  s.push(L(hand([[xAt(T,-1),T],[xAt(B,-1),B],[xAt(B,1),B],[xAt(T,1),T]],R,.5),1.25));
+  s.push(L(hand([[xAt(T,-1)-3,T],[xAt(T,1)+3,T]],R,.4),1.25));
+  s.push(stillLife(d,R,B));
+  return wrap(s);
+}
+function wrap(s){return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img">${s.join('')}</svg>`}
+
+/* ---------- state ---------- */
+let cart=[];try{cart=JSON.parse(localStorage.getItem('bibi-cart')||'[]').filter(it=>byId[it.drinkId])}catch(e){cart=[]}
+const save=()=>{try{localStorage.setItem('bibi-cart',JSON.stringify(cart))}catch(e){}};
+let cat='全部';
+const $=id=>document.getElementById(id);
+const money=n=>'NT$ '+n;
+const linePrice=it=>byId[it.drinkId].price*it.qty;
+function optText(it){const a=[it.sugar,it.ice];if(it.tea)a.unshift(it.tea);let t=a.join(' · ');if(it.note)t+=' · '+it.note;return t}
+
+/* ---------- menu ---------- */
+function renderTabs(){$('tabs').innerHTML=CATS.map(c=>`<button type="button" class="tab" aria-pressed="${c===cat}" data-c="${c}">${c}</button>`).join('')}
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;cat=b.dataset.c;renderTabs();renderGrid()});
+function renderGrid(){
+  $('grid').innerHTML=DRINKS.filter(d=>cat==='全部'||d.cat===cat).map(d=>`
+   <button type="button" class="poster" data-id="${d.id}" aria-label="${d.zh}">
+     <div class="meta"><span>No.${d.no}</span><span>${d.hot?'iced · hot':'iced'}</span></div>
+     <div class="art">${drawDrink(d)}</div>
+     <div class="cap"><div style="min-width:0"><div class="zh">${d.zh}</div><div class="en">${d.en}</div></div></div>
+   </button>`).join('');
+}
+$('grid').addEventListener('click',e=>{const p=e.target.closest('.poster');if(p)openDetail(p.dataset.id)});
+
+/* ---------- detail ---------- */
+let cur=null;
+function openDetail(id){
+  const d=byId[id];
+  cur={drinkId:id,sugar:'不加蜂蜜',ice:'少冰',qty:1,note:''};if(d.teas)cur.tea=d.teas[0];
+  renderDetail();$('detail').hidden=false;document.body.style.overflow='hidden';
+  setTimeout(()=>$('detail').querySelector('.close')?.focus(),30);
+}
+function chip(group,val,label,on){return `<button type="button" class="chip" data-g="${group}" data-v="${val}" aria-pressed="${on}">${label}</button>`}
+function renderDetail(){
+  const d=byId[cur.drinkId];const sugars=SUGARS;
+  $('detail').innerHTML=`
+  <div class="panel" role="dialog" aria-modal="true" aria-label="${d.zh}">
+    <div class="left">
+      <div style="display:flex;justify-content:space-between;font-family:var(--latin);color:var(--ink-soft)"><span>No.${d.no}</span><span>${cur.ice}</span></div>
+      <div class="art">${drawDrink(d,cur)}</div>
+      <div><h2 class="big-zh">${d.zh}</h2><div class="big-en">${d.en}</div></div>
+    </div>
+    <div class="right">
+      <button type="button" class="close" id="closeDetail">close ×</button>
+      <p class="desc">${d.desc}</p>
+      ${d.teas?`<fieldset><legend>茶葉</legend><div class="chips">${d.teas.map(s=>chip('tea',s,s,cur.tea===s)).join('')}</div></fieldset>`:''}
+      <fieldset><legend>蜂蜜</legend><div class="chips">${sugars.map(s=>chip('sugar',s,s,cur.sugar===s)).join('')}</div></fieldset>
+      <fieldset><legend>${d.hot?'冰塊與溫度':'冰塊'}</legend><div class="chips">${iceOpts(d).map(s=>chip('ice',s,s,cur.ice===s)).join('')}</div></fieldset>
+      <fieldset><legend>備註</legend><input type="text" id="note" maxlength="30" placeholder="例如：分開裝、不要吸管" value="${cur.note}"></fieldset>
+      <fieldset><legend>數量</legend><div class="qty"><button type="button" data-q="-1" aria-label="減少">−</button><output>${cur.qty}</output><button type="button" data-q="1" aria-label="增加">+</button></div></fieldset>
+      <div class="addbar"><span class="sum">${cur.qty} 杯</span><button type="button" class="primary" id="addBtn">加入購物袋</button></div>
+    </div>
+  </div>`;
+}
+$('detail').addEventListener('click',e=>{
+  if(e.target.id==='detail'||e.target.id==='closeDetail')return closeDetail();
+  const c=e.target.closest('.chip');
+  if(c){const g=c.dataset.g,v=c.dataset.v;cur[g]=v;cur.note=$('note')?.value||'';renderDetail();$('detail').querySelector(`.chip[data-g="${g}"][data-v="${v}"]`)?.focus();return}
+  const q=e.target.closest('[data-q]');
+  if(q){cur.qty=Math.max(1,Math.min(20,cur.qty+ +q.dataset.q));cur.note=$('note').value;renderDetail();$('detail').querySelector(`[data-q="${q.dataset.q}"]`).focus();return}
+  if(e.target.id==='addBtn'){cur.note=$('note').value.trim();
+    const same=cart.find(x=>x.drinkId===cur.drinkId&&x.tea===cur.tea&&x.sugar===cur.sugar&&x.ice===cur.ice&&x.note===cur.note);
+    if(same)same.qty+=cur.qty;else cart.push({...cur,uid:Date.now()+''+Math.random()});
+    save();updateBar();closeDetail();toast(`${byId[cur.drinkId].zh} 已加入購物袋`)}
+});
+function closeDetail(){$('detail').hidden=true;document.body.style.overflow=''}
+
+/* ---------- bag ---------- */
+function openBag(){renderBag();$('bagVeil').hidden=false;document.body.style.overflow='hidden'}
+function closeBag(){$('bagVeil').hidden=true;document.body.style.overflow=''}
+function renderBag(){
+  const total=cart.reduce((a,it)=>a+linePrice(it),0);const cups=cart.reduce((a,it)=>a+it.qty,0);
+  const prevName=$('cName')?.value||'';const prevTime=$('cTime')?.value||'15';
+  $('bagVeil').innerHTML=`
+  <aside class="bag" role="dialog" aria-modal="true" aria-label="購物袋">
+    <div class="head"><h2>購物袋</h2><button type="button" class="close" id="closeBag">close ×</button></div>
+    <div class="body">${cart.length?cart.map(it=>{const d=byId[it.drinkId];return `
+      <div class="line"><div>${drawDrink(d,it)}</div>
+        <div style="min-width:0"><div class="nm">${d.zh}</div><div class="op">${optText(it)}</div></div>
+        <div class="rt"><div class="mini"><button type="button" data-u="${it.uid}" data-d="-1" aria-label="減少">−</button><span>${it.qty}</span><button type="button" data-u="${it.uid}" data-d="1" aria-label="增加">+</button></div></div>
+      </div>`}).join(''):`<div class="empty">${drawDrink({id:'empty',liquid:'#EDE6D8'},{ice:'去冰'})}<p>袋子裡還沒有飲料</p></div>`}
+    </div>
+    ${cart.length?`<div class="foot">
+      <div class="row2">
+        <label class="f">取餐姓名<input type="text" id="cName" maxlength="12" placeholder="例如：Shannon" value="${prevName}"></label>
+        <label class="f">取餐時間<select id="cTime" style="font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--sheet);padding:10px;color:var(--ink)">
+          ${[['5','盡快（約5分）'],['15','15 分鐘後'],['30','30 分鐘後'],['45','45 分鐘後']].map(([v,l])=>`<option value="${v}" ${v===prevTime?'selected':''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <div class="tot"><span>共</span><b>${cups} 杯</b></div>
+      <button type="button" class="primary" id="checkout">送出訂單</button>
+    </div>`:''}
+  </aside>`;
+}
+$('bagVeil').addEventListener('click',e=>{
+  if(e.target.id==='bagVeil'||e.target.id==='closeBag')return closeBag();
+  const m=e.target.closest('[data-u]');
+  if(m){const it=cart.find(x=>x.uid===m.dataset.u);it.qty+= +m.dataset.d;if(it.qty<=0)cart=cart.filter(x=>x!==it);save();updateBar();renderBag();return}
+  if(e.target.id==='checkout'){
+    const name=$('cName').value.trim();if(!name){$('cName').focus();$('cName').placeholder='請填寫取餐姓名';$('cName').style.borderColor='#9C4A33';return}
+    e.target.disabled=true;e.target.textContent='送出中…';placeOrder(name,+$('cTime').value);
+  }
+});
+window.START_ADMIN=true;
+/* ---------- Firebase ---------- */
+let fdb=null,fauth=null;
+try{if(window.FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey){firebase.initializeApp(FIREBASE_CONFIG);fdb=firebase.firestore();fauth=firebase.auth()}}catch(e){console.error(e)}
+async function submitOrder(o){
+  if(!fdb)throw new Error('not configured');
+  const n=await fdb.runTransaction(async tx=>{
+    const cref=fdb.doc('meta/counter');const c=await tx.get(cref);
+    const n=(c.exists?c.data().n:0)+1;tx.set(cref,{n});
+    tx.set(fdb.collection('orders').doc(),{n,no:String(n).padStart(4,'0'),name:o.name,pickup:o.pickup,items:o.items,cups:o.items.reduce((a,it)=>a+it.qty,0),done:false,at:firebase.firestore.FieldValue.serverTimestamp()});
+    return n});
+  return {ok:true,no:String(n).padStart(4,'0')};
+}
+async function placeOrder(name,mins){
+  const t=new Date(Date.now()+mins*60000);const hh=String(t.getHours()).padStart(2,'0'),mm=String(t.getMinutes()).padStart(2,'0');
+  const first=cart[0];const cups=cart.reduce((a,it)=>a+it.qty,0);
+  let res=null;
+  try{res=await submitOrder({name,pickup:`${hh}:${mm}`,items:cart.map(it=>({zh:(byId[it.drinkId].zh+(it.tea?'（'+it.tea+'）':'')).slice(0,40),qty:it.qty,honey:it.sugar,ice:it.ice,note:(it.note||'').slice(0,30)}))})}catch(err){console.error(err);res=null}
+  if(!res||!res.ok){
+    const b=$('checkout');if(b){b.disabled=false;b.textContent='送出訂單'}
+    toast('訂單沒有送出，請檢查網路後再按一次');return;
+  }
+  $('rcpt').innerHTML=`<div class="receipt" role="dialog" aria-modal="true" aria-label="訂單已成立">
+    <div style="display:flex;justify-content:space-between;font-family:var(--latin);color:var(--ink-soft)"><span>比比家飲料舖</span><span>${t.getFullYear()}.${t.getMonth()+1}.${t.getDate()}</span></div>
+    <div class="no">No.${esc(res.no)}</div>
+    <div class="art">${drawDrink(byId[first.drinkId],first)}</div>
+    <div style="font-family:var(--display);font-size:18px;letter-spacing:.14em">${esc(name)}，訂單已成立</div>
+    <div style="color:var(--ink-soft);font-size:14px">請於 ${hh}:${mm} 取餐</div>
+    <ul>${cart.map(it=>`<li><span>${byId[it.drinkId].zh} × ${it.qty}<br><small style="color:var(--ink-soft)">${esc(optText(it))}</small></span></li>`).join('')}</ul>
+    <div class="tot"><span>共</span><b>${cups} 杯</b></div>
+    <button type="button" class="primary" id="again">再點一杯</button>
+  </div>`;
+  cart=[];save();updateBar();closeBag();$('rcpt').hidden=false;document.body.style.overflow='hidden';$('again').focus();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+/* ---------- 後台 ---------- */
+let allOrders=[],adminFilter='pending',unsub=null,adminMsg='',adminUser=null,adminBusy=false;
+function openAdmin(){$('adminVeil').hidden=false;document.body.style.overflow='hidden';renderAdmin()}
+function closeAdmin(){$('adminVeil').hidden=true;document.body.style.overflow=''}
+function listen(){
+  if(unsub)unsub();
+  unsub=fdb.collection('orders').orderBy('at','desc').limit(300).onSnapshot(snap=>{
+    allOrders=snap.docs.map(d=>{const o=d.data({serverTimestamps:'estimate'});return {...o,id:d.id,atMs:o.at?o.at.toMillis():Date.now()}});
+    adminMsg='';$('pendCount').textContent=allOrders.filter(o=>!o.done).length;
+    if(!$('adminVeil').hidden)renderAdmin();
+    if(window.START_ADMIN)notifyNew(snap);
+  },err=>{adminMsg=err.code==='permission-denied'?'這個帳號沒有後台權限':'讀取失敗：'+err.message;renderAdmin()});
+}
+let firstSnap=true;
+function notifyNew(snap){
+  if(firstSnap){firstSnap=false;return}
+  const added=snap.docChanges().filter(c=>c.type==='added').length;
+  if(added){toast(`收到 ${added} 筆新訂單`);try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
+}
+if(fauth)fauth.onAuthStateChanged(u=>{adminUser=u;if(u){$('adminBtn').hidden=false;listen()}else{if(unsub)unsub();unsub=null;allOrders=[]}if(!$('adminVeil').hidden)renderAdmin()});
+function renderAdmin(){
+  const head=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:28px max(24px,env(safe-area-inset-right,0px)) 16px 24px;border-bottom:1px solid var(--rule)"><h2 style="font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:.2em;margin:0">後台</h2>${window.START_ADMIN?'':'<button type="button" class="close" id="closeAdmin">close ×</button>'}</div>`;
+  if(!fauth){$('adminVeil').innerHTML=`<aside class="admin">${head}<p style="padding:24px" class="note-warn">資料庫還沒設定完成。</p></aside>`;return}
+  if(!adminUser){$('adminVeil').innerHTML=`<aside class="admin" role="dialog" aria-modal="true" aria-label="後台">${head}
+    <form id="loginForm" style="padding:24px;display:flex;flex-direction:column;gap:12px;max-width:340px">
+      <label class="f">Email<input type="text" inputmode="email" id="lgEmail" autocomplete="username"></label>
+      <label class="f">密碼<input type="password" id="lgPw" autocomplete="current-password" style="width:100%;font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--sheet);padding:10px 12px;color:var(--ink);border-radius:2px"></label>
+      ${adminMsg?`<div class="note-warn">${esc(adminMsg)}</div>`:''}
+      <button type="submit" class="primary" ${adminBusy?'disabled':''}>${adminBusy?'登入中…':'登入後台'}</button></form></aside>`;return}
+  const pend=allOrders.filter(o=>!o.done);const list=adminFilter==='pending'?pend:allOrders;
+  const tally={};pend.forEach(o=>(o.items||[]).forEach(it=>{const k=it.zh+' · '+it.ice;tally[k]=(tally[k]||0)+it.qty}));
+  const fmt=ts=>{const d=new Date(ts);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+  $('adminVeil').innerHTML=`<aside class="admin" role="dialog" aria-modal="true" aria-label="後台">${head}
+    <div style="flex:1;overflow-y:auto;padding:12px max(24px,env(safe-area-inset-right,0px)) 24px 24px">
+      <div class="chips">${chip('af','pending',`待處理 ${pend.length}`,adminFilter==='pending')}${chip('af','all',`全部 ${allOrders.length}`,adminFilter==='all')}</div>
+      ${adminMsg?`<div class="note-warn" style="margin-top:10px">${esc(adminMsg)}</div>`:''}
+      ${pend.length?`<div class="tally"><span style="color:var(--ink-soft)">待做</span>${Object.entries(tally).map(([k,v])=>`<span>${esc(k)} <b>×${v}</b></span>`).join('')}</div>`:''}
+      ${list.length?list.map(o=>`<div class="ord ${o.done?'done':''}">
+        <div class="h"><span class="n">No.${esc(o.no)}</span><span class="who">${esc(o.name)}</span><span class="t">${fmt(o.atMs)} 下單 · ${esc(o.pickup)} 取餐</span></div>
+        <ul>${(o.items||[]).map(it=>`<li>${esc(it.zh)} × ${it.qty} <small>${esc([it.honey,it.ice,it.note].filter(Boolean).join(' · '))}</small></li>`).join('')}</ul>
+        <div class="chips"><button type="button" class="chip" data-oid="${esc(o.id)}">${o.done?'改回待處理':'標記完成'}</button>${o.done?`<button type="button" class="chip" data-del="${esc(o.id)}">刪除</button>`:''}</div>
+      </div>`).join(''):`<div class="empty"><p>${adminFilter==='pending'?'目前沒有待處理的訂單':'還沒有人點餐'}</p></div>`}
+      <p style="font-size:12.5px;color:var(--ink-soft);margin-top:20px">新訂單會自動出現。<button type="button" class="close" id="logout" style="font-size:12.5px">登出</button></p>
+    </div></aside>`;
+}
+let delArm=null;
+$('adminVeil').addEventListener('submit',async e=>{e.preventDefault();
+  const em=$('lgEmail').value.trim(),pw=$('lgPw').value;if(!em||!pw)return;
+  adminBusy=true;adminMsg='';renderAdmin();
+  try{await fauth.signInWithEmailAndPassword(em,pw)}catch(err){adminMsg='Email 或密碼不正確'}
+  adminBusy=false;renderAdmin()});
+$('adminVeil').addEventListener('click',async e=>{
+  if(e.target.id==='adminVeil'&&!window.START_ADMIN||e.target.id==='closeAdmin')return closeAdmin();
+  if(e.target.id==='logout'){await fauth.signOut();return}
+  const f=e.target.closest('.chip[data-g="af"]');if(f){adminFilter=f.dataset.v;renderAdmin();return}
+  const b=e.target.closest('[data-oid]');
+  if(b){b.disabled=true;const o=allOrders.find(x=>x.id===b.dataset.oid);
+    try{await fdb.collection('orders').doc(o.id).update({done:!o.done})}catch(err){toast('更新失敗，請再試一次');b.disabled=false}return}
+  const d=e.target.closest('[data-del]');
+  if(d){if(delArm!==d.dataset.del){delArm=d.dataset.del;d.textContent='再按一次刪除';setTimeout(()=>{if(delArm===d.dataset.del){delArm=null;d.textContent='刪除'}},3000);return}
+    delArm=null;try{await fdb.collection('orders').doc(d.dataset.del).delete()}catch(err){toast('刪除失敗')}}
+});
+$('adminBtn').addEventListener('click',openAdmin);
+if(location.hash==='#admin'||window.START_ADMIN){$('adminBtn').hidden=false;openAdmin()}
+window.addEventListener('hashchange',()=>{if(location.hash==='#admin'){$('adminBtn').hidden=false;openAdmin()}});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+
+/* ---------- chrome ---------- */
+function updateBar(){const cups=cart.reduce((a,it)=>a+it.qty,0);const total=cart.reduce((a,it)=>a+linePrice(it),0);
+  $('bagCount').textContent=cups;$('barTxt').textContent='購物袋';$('barSum').textContent=cups+' 杯';$('bar').hidden=cups===0}
+$('bagTop').addEventListener('click',openBag);$('barBtn').addEventListener('click',openBag);
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!$('adminVeil').hidden){closeAdmin();return}if(!$('rcpt').hidden){$('rcpt').hidden=true;document.body.style.overflow=''}else if(!$('detail').hidden)closeDetail();else if(!$('bagVeil').hidden)closeBag()});
+let tt;function toast(m){const el=$('toast');el.textContent=m;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,1800)}
+
+renderTabs();renderGrid();updateBar();
+</script>
+
+</body>
+</html>

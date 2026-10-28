@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner() {
+      return request.auth != null && request.auth.token.email == 'phl011521@gmail.com';
+    }
+
+    // 訂單編號計數器：任何人只能 +1
+    match /meta/counter {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['n']) && request.resource.data.n == 1;
+      allow update: if request.resource.data.keys().hasOnly(['n']) && request.resource.data.n == resource.data.n + 1;
+    }
+
+    // 訂單：任何人可以送出，只有店家能看、改、刪
+    match /orders/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['n','no','name','pickup','items','cups','done','at'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
+        && request.resource.data.items is list && request.resource.data.items.size() > 0 && request.resource.data.items.size() <= 30
+        && request.resource.data.done == false
+        && request.resource.data.at == request.time
+        && request.resource.data.n == getAfter(/databases/$(database)/documents/meta/counter).data.n;
+      allow read, delete: if isOwner();
+      allow update: if isOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']);
+    }
+  }
+}
