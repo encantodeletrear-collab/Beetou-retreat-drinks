@@ -495,11 +495,11 @@ $('bagVeil').addEventListener('click',e=>{
   }
 });
 function api(fn,arg){return new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](arg))}
-/* 取餐時間：今天起 7 天，08:00–22:00 每半小時 */
-const OPEN_H=8,CLOSE_H=22,WEEK='日一二三四五六';
+/* 取餐時間：今天起 7 天，全天 00:00–23:30 每半小時 */
+const OPEN_H=0,CLOSE_H=24,WEEK='日一二三四五六';
 const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 function slotsFor(day){const out=[];const now=Date.now()+15*60000;
-  for(let m=OPEN_H*60;m<=CLOSE_H*60;m+=30){const hh=String(Math.floor(m/60)).padStart(2,'0'),mm=String(m%60).padStart(2,'0');
+  for(let m=OPEN_H*60;m<CLOSE_H*60;m+=30){const hh=String(Math.floor(m/60)).padStart(2,'0'),mm=String(m%60).padStart(2,'0');
     if(new Date(`${day}T${hh}:${mm}:00`).getTime()>=now)out.push(`${hh}:${mm}`)}return out}
 function pickupDays(){const out=[];const base=new Date();base.setHours(0,0,0,0);
   for(let i=0;i<7;i++){const d=new Date(base);d.setDate(base.getDate()+i);const v=ymd(d);if(!slotsFor(v).length)continue;
