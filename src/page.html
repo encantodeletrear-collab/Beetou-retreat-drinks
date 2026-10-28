@@ -187,7 +187,7 @@ footer{margin-top:56px;font-family:var(--latin);font-style:italic;color:var(--in
   <header class="top">
     <div class="mark">
       <h1>比比家飲料舖</h1>
-      <span>tea, coffee &amp; cocoa · 18 cups on paper</span>
+      <span id="tagline">tea, coffee &amp; cocoa on paper</span>
     </div>
     <div class="hbtns"><button class="bag-btn" id="adminBtn" type="button" hidden>後台 <b id="pendCount">0</b></button><button class="bag-btn" id="bagTop" type="button">購物袋 <b id="bagCount">0</b></button></div>
   </header>
@@ -589,6 +589,7 @@ $('bagTop').addEventListener('click',openBag);$('barBtn').addEventListener('clic
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!$('adminVeil').hidden){closeAdmin();return}if(!$('rcpt').hidden){$('rcpt').hidden=true;document.body.style.overflow=''}else if(!$('detail').hidden)closeDetail();else if(!$('bagVeil').hidden)closeBag()});
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,1800)}
 
+$('tagline').textContent=`tea, coffee & cocoa · ${DRINKS.length} cups on paper`;
 renderTabs();renderGrid();updateBar();
 </script>
 

@@ -200,9 +200,9 @@ footer{margin-top:56px;font-family:var(--latin);font-style:italic;color:var(--in
   <header class="top">
     <div class="mark">
       <h1>比比家飲料舖</h1>
-      <span>tea, coffee &amp; cocoa · 18 cups on paper</span>
+      <span id="tagline">tea, coffee &amp; cocoa on paper</span>
     </div>
-    <div class="hbtns"><button class="bag-btn" id="adminBtn" type="button" hidden>後台 <b id="pendCount">0</b></button><button class="bag-btn" id="bagTop" type="button">購物袋 <b id="bagCount">0</b></button></div>
+    <div class="hbtns"><span id="adminBtn" hidden></span><span id="pendCount" hidden></span><button class="bag-btn" id="bagTop" type="button">購物袋 <b id="bagCount">0</b></button></div>
   </header>
 
   <nav class="tabs" id="tabs" aria-label="飲品分類"></nav>
@@ -572,7 +572,7 @@ function notifyNew(snap){
   const added=snap.docChanges().filter(c=>c.type==='added').length;
   if(added){toast(`收到 ${added} 筆新訂單`);try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
 }
-if(fauth)fauth.onAuthStateChanged(u=>{adminUser=u;if(u){$('adminBtn').hidden=false;listen()}else{if(unsub)unsub();unsub=null;allOrders=[]}if(!$('adminVeil').hidden)renderAdmin()});
+if(fauth&&window.START_ADMIN)fauth.onAuthStateChanged(u=>{adminUser=u;if(u){listen()}else{if(unsub)unsub();unsub=null;allOrders=[]}if(!$('adminVeil').hidden)renderAdmin()});
 function renderAdmin(){
   const head=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:28px max(24px,env(safe-area-inset-right,0px)) 16px 24px;border-bottom:1px solid var(--rule)"><h2 style="font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:.2em;margin:0">後台</h2>${window.START_ADMIN?'':'<button type="button" class="close" id="closeAdmin">close ×</button>'}</div>`;
   if(!fauth){$('adminVeil').innerHTML=`<aside class="admin">${head}<p style="padding:24px" class="note-warn">資料庫還沒設定完成。</p></aside>`;return}
@@ -616,8 +616,7 @@ $('adminVeil').addEventListener('click',async e=>{
     delArm=null;try{await fdb.collection('orders').doc(d.dataset.del).delete()}catch(err){toast('刪除失敗')}}
 });
 $('adminBtn').addEventListener('click',openAdmin);
-if(location.hash==='#admin'||window.START_ADMIN){$('adminBtn').hidden=false;openAdmin()}
-window.addEventListener('hashchange',()=>{if(location.hash==='#admin'){$('adminBtn').hidden=false;openAdmin()}});
+if(window.START_ADMIN)openAdmin();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 
 /* ---------- chrome ---------- */
@@ -627,6 +626,7 @@ $('bagTop').addEventListener('click',openBag);$('barBtn').addEventListener('clic
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!$('adminVeil').hidden){closeAdmin();return}if(!$('rcpt').hidden){$('rcpt').hidden=true;document.body.style.overflow=''}else if(!$('detail').hidden)closeDetail();else if(!$('bagVeil').hidden)closeBag()});
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,1800)}
 
+$('tagline').textContent=`tea, coffee & cocoa · ${DRINKS.length} cups on paper`;
 renderTabs();renderGrid();updateBar();
 </script>
 

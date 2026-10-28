@@ -63,7 +63,7 @@ function notifyNew(snap){
   const added=snap.docChanges().filter(c=>c.type==='added').length;
   if(added){toast(`收到 ${added} 筆新訂單`);try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
 }
-if(fauth)fauth.onAuthStateChanged(u=>{adminUser=u;if(u){$('adminBtn').hidden=false;listen()}else{if(unsub)unsub();unsub=null;allOrders=[]}if(!$('adminVeil').hidden)renderAdmin()});
+if(fauth&&window.START_ADMIN)fauth.onAuthStateChanged(u=>{adminUser=u;if(u){listen()}else{if(unsub)unsub();unsub=null;allOrders=[]}if(!$('adminVeil').hidden)renderAdmin()});
 function renderAdmin(){
   const head=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:28px max(24px,env(safe-area-inset-right,0px)) 16px 24px;border-bottom:1px solid var(--rule)"><h2 style="font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:.2em;margin:0">後台</h2>${window.START_ADMIN?'':'<button type="button" class="close" id="closeAdmin">close ×</button>'}</div>`;
   if(!fauth){$('adminVeil').innerHTML=`<aside class="admin">${head}<p style="padding:24px" class="note-warn">資料庫還沒設定完成。</p></aside>`;return}
@@ -107,8 +107,7 @@ $('adminVeil').addEventListener('click',async e=>{
     delArm=null;try{await fdb.collection('orders').doc(d.dataset.del).delete()}catch(err){toast('刪除失敗')}}
 });
 $('adminBtn').addEventListener('click',openAdmin);
-if(location.hash==='#admin'||window.START_ADMIN){$('adminBtn').hidden=false;openAdmin()}
-window.addEventListener('hashchange',()=>{if(location.hash==='#admin'){$('adminBtn').hidden=false;openAdmin()}});
+if(window.START_ADMIN)openAdmin();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 
 '''
@@ -120,6 +119,9 @@ def page(title, appname, manifest, icon, admin):
     if admin:
         x = x.replace('/* ---------- Firebase ---------- */', 'window.START_ADMIN=true;\n/* ---------- Firebase ---------- */', 1)
         x = x.replace('.admin{width:min(620px,100%)', '.admin{width:100%', 1)
+    if not admin:
+        x = x.replace('<button class="bag-btn" id="adminBtn" type="button" hidden>後台 <b id="pendCount">0</b></button>', '<span id="adminBtn" hidden></span><span id="pendCount" hidden></span>', 1)
+        assert '後台 <b' not in x
     return x
 
 open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(page('比比家飲料舖', '比比家', 'manifest.webmanifest', 'icon-180.png', False))
